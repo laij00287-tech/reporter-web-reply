@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新聞採訪區塊鏈 - 回覆表單 | News Interview Blockchain - Reply Form</title>
+    <!-- 引入 Tailwind CSS 確保極簡且響應式的樣式 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f7f7f7; }
+    </style>
+</head>
+<body class="p-4 sm:p-8 bg-gray-50 min-h-screen">
+
+    <div id="app-container" class="max-w-xl mx-auto bg-white shadow-xl rounded-xl p-6 sm:p-8">
+        <h1 class="text-3xl font-extrabold text-gray-800 mb-4 text-center">
+            新聞採訪回覆表單 | News Interview Reply Form
+        </h1>
+        <p class="text-gray-500 mb-8 text-center">
+            請回答以下問題，您的回覆將被數位存證。<br>
+            Please answer the questions below. Your reply will be digitally certified.
+        </p>
+
+        <!-- 問題渲染區域 -->
+        <div id="questions-container" class="space-y-6">
+            <!-- Questions and Textareas will be injected here by JavaScript -->
+        </div>
+
+        <div id="status-message" class="mt-8 p-3 rounded-lg text-center font-medium hidden"></div>
+        
+        <button id="submit-button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-md transition duration-200 mt-8 disabled:opacity-50">
+            提交回覆並返回 App (Submit & Return)
+        </button>
+
+        <p class="text-sm text-gray-400 mt-6 text-center">
+            Powered by News Interview Blockchain App, Certified by CHIA-YUAN HSU (Reporter).
+        </p>
+    </div>
+
+    <script>
+        // 常量定義 (與 App 內部的 Deep Link Scheme 保持一致)
+        const DEEP_LINK_SCHEME = "reporterapp";
+        const DEEP_LINK_HOST = "data";
+        
+        const questionsContainer = document.getElementById('questions-container');
+        const submitButton = document.getElementById('submit-button');
+        const statusMessage = document.getElementById('status-message');
+        let originalEncodedQuestions = '';
+        let questions = [];
+
+        /**
+         * 顯示狀態訊息 (Displays status messages)
+         */
+        function showStatus(text, type) {
+            statusMessage.textContent = text;
+            statusMessage.classList.remove('hidden', 'bg-red-100', 'text-red-800', 'bg-green-100', 'text-green-800', 'bg-yellow-100', 'text-yellow-800');
+            
+            if (type === 'error') {
+                statusMessage.classList.add('bg-red-100', 'text-red-800');
+            } else if (type === 'success') {
+                statusMessage.classList.add('bg-green-100', 'text-green-800');
+            } else {
+                statusMessage.classList.add('bg-yellow-100', 'text-yellow-800');
+            }
+            statusMessage.classList.remove('hidden');
+        }
+
+        /**
+         * 從 URL 解析 Base64 編碼的問題 (Parses Base64 questions from URL)
+         */
+        function parseQuestionsFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            originalEncodedQuestions = urlParams.get('q');
+
+            if (!originalEncodedQuestions) {
+                showStatus("錯誤：URL 中未找到問題參數 ('q')。| Error: Question parameter missing.", 'error');
+                submitButton.disabled = true;
+                return;
+            }
+
+            try {
+                // 1. URL 解碼 (URL Decode)
+                const decodedUrl = decodeURIComponent(originalEncodedQuestions);
+                // 2. Base64 解碼 (Base64 Decode)
+                const decodedBase64 = atob(decodedUrl);
+                // 3. 轉換為 UTF-8 字串 (Convert to UTF-8)
+                const questionString = decodeURIComponent(escape(decodedBase64));
+                
+                questions = questionString.split('|').filter(q => q.trim() !== '');
+
+                if (questions.length === 0) {
+                    showStatus("錯誤：問題內容空白或格式不正確。| Error: Questions are empty or malformed.", 'error');
+                    submitButton.disabled = true;
+                    return;
+                }
+                
+                renderQuestions();
+
+            } catch (e) {
+                console.error("Decoding error:", e);
+                showStatus("數據解析失敗，請聯繫記者。| Data parsing failed. Contact the reporter.", 'error');
+                submitButton.disabled = true;
+            }
+        }
+
+        /**
+         * 將問題渲染到頁面上 (Renders questions on the page)
+         */
+        function renderQuestions() {
+            questionsContainer.innerHTML = '';
+            questions.forEach((q, index) => {
+                const questionItem = document.createElement('div');
+                questionItem.className = 'p-4 border border-gray-200 rounded-lg bg-white';
+                
+                questionItem.innerHTML = `
+                    <label for="answer-${index}" class="block text-lg font-semibold text-gray-700 mb-2">
+                        問題 ${index + 1} | Question ${index + 1}: <span class="text-blue-600">${q}</span>
+                    </label>
+                    <textarea id="answer-${index}" rows="4" required
+                        class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150"
+                        placeholder="請在此輸入您的回覆 (Type your answer here...)"></textarea>
+                `;
+                questionsContainer.appendChild(questionItem);
+            });
+        }
+
+        /**
+         * 提交按鈕點擊處理 (Handles submit button click)
+         */
+        function handleSubmit() {
+            submitButton.disabled = true;
+            submitButton.textContent = "正在準備數據... (Preparing Data...)";
+            
+            const answerInputs = questions.map((q, index) => 
+                document.getElementById(`answer-${index}`).value.trim()
+            );
+
+            // 驗證是否有空白答案
+            if (answerInputs.some(ans => ans === '')) {
+                showStatus("請填寫所有問題的回覆。| Please answer all questions.", 'error');
+                submitButton.disabled = false;
+                submitButton.textContent = "提交回覆並返回 App (Submit & Return)";
+                return;
+            }
+
+            try {
+                // 1. 封裝回覆數據
+                const replyPayload = {
+                    answers: answerInputs,
+                    original_q: originalEncodedQuestions, // 帶回原始編碼問題，用於 App 內核對
+                    timestamp: new Date().toISOString()
+                };
+
+                // 2. 轉換為 JSON 字串
+                const jsonString = JSON.stringify(replyPayload);
+
+                // 3. Base64 編碼 JSON 字串
+                const encodedPayload = btoa(unescape(encodeURIComponent(jsonString)));
+
+                // 4. 構建 Deep Link
+                // 格式: reporterapp://data?payload=[Base64 Encoded Reply JSON]
+                const deepLink = `${DEEP_LINK_SCHEME}://${DEEP_LINK_HOST}?payload=${encodeURIComponent(encodedPayload)}`;
+
+                showStatus("數據已封裝，正在嘗試開啟 App... | Data sealed. Opening App...", 'success');
+                
+                // 5. 導向 Deep Link (會嘗試開啟原生 App)
+                window.location.href = deepLink;
+
+                // 提供備用提示 (如果 App 未安裝，導向可能會失敗)
+                setTimeout(() => {
+                    submitButton.disabled = false;
+                    submitButton.textContent = "提交回覆並返回 App (Submit & Return)";
+                    showStatus("如果 App 沒有自動開啟，請確認您已安裝新聞採訪區塊鏈 App。| If the App doesn't open, please check installation.", 'info');
+                }, 1500);
+
+            } catch (e) {
+                console.error("Submission error:", e);
+                showStatus("提交過程中發生錯誤，請截圖聯繫記者。| An error occurred during submission.", 'error');
+                submitButton.disabled = false;
+                submitButton.textContent = "提交回覆並返回 App (Submit & Return)";
+            }
+        }
+
+
+        // 程式初始化
+        window.onload = function() {
+            parseQuestionsFromUrl();
+            submitButton.addEventListener('click', handleSubmit);
+        }
+    </script>
+</body>
+</html>
