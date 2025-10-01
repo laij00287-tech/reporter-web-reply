@@ -22,19 +22,14 @@
             <h1 class="text-3xl font-extrabold text-gray-900 mb-1">新聞採訪回覆表單</h1>
             <p class="text-xl font-semibold text-indigo-600 mb-4">News Interview Reply Form</p>
             <div class="text-xs text-gray-500 border-t pt-3 mt-4">
+                <!-- 注意：此處僅為模擬成功，實際存證功能因環境問題暫停 -->
                 <p>Powered by News Interview Blockchain App, Certified by CHIA-YUAN HSU (Reporter).</p>
-                <p class="mt-1 text-red-500 font-medium">您的回覆將被數位存證。</p>
+                <p class="mt-1 text-red-500 font-medium">（模擬模式：點擊提交將顯示成功畫面）</p>
             </div>
         </header>
 
         <!-- 訊息顯示區塊 -->
         <div id="message-box" class="p-3 mb-4 rounded-lg text-sm transition-all duration-300 ease-in-out hidden"></div>
-        
-        <!-- 診斷資訊區塊 (新增 - 幫助檢查環境變數) -->
-        <div id="diagnostic-info" class="p-2 mb-4 bg-yellow-50 text-yellow-800 text-xs rounded-lg border border-yellow-200">
-            <p class="font-bold">連線診斷 (Diagnostics):</p>
-            <p id="config-status" class="break-words">Firebase Config 狀態: 檢查中...</p>
-        </div>
 
         <!-- 表單區塊 -->
         <div id="form-content">
@@ -43,7 +38,6 @@
                 <div class="bg-indigo-50 border border-indigo-200 p-4 rounded-lg shadow-inner">
                     <p class="text-sm font-medium text-indigo-700 mb-2">請回答以下問題：</p>
                     <p id="question-display" class="text-lg font-bold text-gray-800 break-words">
-                        <!-- 載入中的預設文字 -->
                         正在載入問題... (Loading Question...)
                     </p>
                 </div>
@@ -57,10 +51,10 @@
 
             <!-- 提交按鈕 -->
             <div class="mt-8">
-                <!-- 初始為禁用狀態，等待連線成功 -->
-                <button onclick="submitReply()" id="submit-button" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-lg text-lg font-bold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                    <span id="button-text">連線中...請稍候 (Connecting... Please wait)</span>
-                    <svg id="loading-spinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <!-- 初始啟用，因為沒有資料庫連線延遲 -->
+                <button onclick="submitReply()" id="submit-button" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-lg text-lg font-bold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-200 ease-in-out">
+                    <span id="button-text">提交回覆並返回 App (Submit & Return)</span>
+                    <svg id="loading-spinner" class="hidden animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
@@ -69,39 +63,13 @@
         </div>
     </div>
 
-    <!-- Firebase 腳本 -->
+    <!-- 腳本 -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // 設定 Firebase 全域變數
-        let app;
-        let db;
-        let auth;
-        let userId = 'reporter-web-reply-default-user'; // 預設值，將被登入後的 UID 覆蓋
-        let isFirebaseReady = false; // 關鍵旗標：Firebase 是否已初始化並登入
+        // 移除所有 Firebase 相關的 import
 
         // 全域提供給 HTML onclick 使用
         window.submitReply = submitReply;
         
-        // 確保 __app_id 和 __firebase_config 在 Canvas 環境中可用
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        let firebaseConfig = {};
-        const configStatusElement = document.getElementById('config-status');
-
-        try {
-            // 從環境變數獲取原始配置字串
-            const rawConfig = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
-            
-            if (rawConfig && rawConfig.trim()) {
-                // 如果字串存在，則嘗試解析
-                firebaseConfig = JSON.parse(rawConfig);
-            }
-        } catch (e) {
-            console.error("Firebase config parsing error:", e);
-        }
-
         // Helper 函式：顯示訊息
         function showMessage(text, isError = false) {
             const box = document.getElementById('message-box');
@@ -111,16 +79,14 @@
             if (isError) {
                 box.classList.add('bg-red-100', 'border-red-400', 'text-red-700');
             } else {
-                box.classList.add('bg-green-100', 'border-green-400', 'text-green-700');
+                // 模擬模式下，所有操作成功後都會使用藍色作為提示
+                box.classList.add('bg-blue-100', 'border-blue-400', 'text-blue-700');
             }
             box.classList.remove('hidden');
         }
 
         /**
          * Helper 函式：更新提交按鈕狀態
-         * @param {boolean} loading - 是否顯示旋轉圖示
-         * @param {string} text - 按鈕要顯示的文字
-         * @param {boolean} disabled - 按鈕是否禁用
          */
         function updateSubmitButtonStatus(loading, text, disabled) {
             const button = document.getElementById('submit-button');
@@ -138,63 +104,10 @@
         }
 
         /**
-         * 初始化 Firebase 服務並進行身份驗證
+         * 應用程式初始化：只負責解析 URL 中的問題
          */
-        async function initFirebaseAndAuth() {
-            // 初始狀態：連線中
-            updateSubmitButtonStatus(true, "連線中...請稍候 (Connecting... Please wait)", true);
-            
-            try {
-                // 1. 檢查並更新設定檔狀態 (核心診斷步驟)
-                if (Object.keys(firebaseConfig).length === 0) {
-                    configStatusElement.innerHTML = "Firebase Config 狀態: ❌ **設定檔遺失或為空**。請檢查 App 環境變數是否正確提供 `__firebase_config`。";
-                    throw new Error("Firebase 設定檔遺失或解析失敗。"); 
-                }
-                
-                configStatusElement.textContent = `Firebase Config 狀態: ✅ 成功載入 (${Object.keys(firebaseConfig).length} 個參數)`;
-                
-                // 2. 初始化 Firebase App
-                app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-                
-                // 啟用 Firestore Debug 模式 (可選)
-                setLogLevel('debug');
-                
-                // 3. 身份驗證
-                const authToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-                if (authToken) {
-                    await signInWithCustomToken(auth, authToken);
-                } else {
-                    await signInAnonymously(auth);
-                }
-                
-                // 4. 設定使用者 ID
-                userId = auth.currentUser?.uid || crypto.randomUUID();
-
-                // 5. 成功，設定旗標並更新 UI
-                isFirebaseReady = true;
-                console.log("Firebase 初始化與登入成功。User ID:", userId);
-                showMessage("✅ Firebase 連線成功，可以提交回覆。", false);
-                updateSubmitButtonStatus(false, "提交回覆並返回 App (Submit & Return)", false); // 啟用按鈕
-
-            } catch (error) {
-                // 6. 失敗，更新 UI 為錯誤狀態
-                console.error("Firebase 初始化錯誤:", error);
-                const errorMsg = `連線失敗：Firebase 初始化失敗。(${error.message})`;
-                showMessage(errorMsg, true);
-                updateSubmitButtonStatus(false, "連線失敗，無法提交 (Connection Failed)", true); // 禁用按鈕
-            } finally {
-                // 載入問題內容 (無論連線成功或失敗都嘗試載入)
-                parseQuestionFromUrl();
-            }
-        }
-
-        /**
-         * 從 URL 參數解析問題內容
-         */
-        function parseQuestionFromUrl() {
+        function initApp() {
+            // 從 URL 參數解析問題內容
             const urlParams = new URLSearchParams(window.location.search);
             const question = urlParams.get('q');
             const displayElement = document.getElementById('question-display');
@@ -202,31 +115,27 @@
             if (question) {
                 // 成功解析問題
                 displayElement.textContent = decodeURIComponent(question);
+                showMessage("✅ 應用程式已準備就緒，您可以輸入回覆並模擬提交。", false);
             } else {
                 // 缺少問題參數 'q'
                 const errorMsg = "錯誤：URL 中未找到問題參數 ('q')。請聯絡記者以取得一個包含完整問題參數的正確連結。";
                 displayElement.textContent = errorMsg;
                 showMessage(errorMsg, true);
                 
-                // 如果沒有問題，確保提交按鈕被禁用
-                updateSubmitButtonStatus(false, "缺少問題參數 (Missing Question)", true);
+                // 如果沒有問題，禁用按鈕
+                updateSubmitButtonStatus(false, "缺少問題參數，無法提交 (Missing Question)", true);
             }
         }
 
+
         /**
-         * 表單提交邏輯
+         * 表單提交邏輯 - 模擬模式
          */
         async function submitReply() {
-            // 步驟 1: 檢查 Firebase 狀態 (連線失敗的按鈕會被禁用，此處為雙重保險)
-            if (!isFirebaseReady || !db || !auth.currentUser) {
-                showMessage("錯誤：Firebase 尚未準備好，請稍候或檢查連線。", true);
-                return;
-            }
-
             const question = document.getElementById('question-display').textContent;
             const responseText = document.getElementById('response-text').value.trim();
 
-            // 步驟 2: 檢查輸入內容
+            // 步驟 1: 檢查輸入內容
             if (!responseText) {
                 showMessage("錯誤：回覆內容不能為空。", true);
                 return;
@@ -236,45 +145,34 @@
                  return;
             }
             
-            updateSubmitButtonStatus(true, "提交中...", true); // 顯示載入狀態並禁用
+            updateSubmitButtonStatus(true, "模擬提交中...", true); // 顯示載入狀態並禁用
+
+            // 步驟 2: 模擬網路延遲
+            await new Promise(resolve => setTimeout(resolve, 1000)); 
 
             try {
-                // 步驟 3: 構建資料結構
-                const replyData = {
-                    question: question,
-                    response: responseText,
-                    reporterId: 'CHIA-YUAN HSU', // 寫死記者名稱，用於演示
-                    respondentId: userId, // 匿名或認證使用者 ID
-                    timestamp: new Date().toISOString(),
-                    appId: appId
-                };
-
-                // 步驟 4: 寫入 Firestore
-                // 將資料寫入公共集合，路徑: /artifacts/{appId}/public/data/interview_responses
-                const collectionPath = `artifacts/${appId}/public/data/interview_responses`;
+                // 步驟 3: 模擬資料寫入成功
+                console.log("模擬提交成功。問題:", question, "回覆:", responseText);
                 
-                // 使用 addDoc 讓 Firestore 自動生成文件 ID
-                await addDoc(collection(db, collectionPath), replyData);
-                
-                // 步驟 5: 成功訊息
-                showMessage("✅ 回覆已成功提交並數位存證。", false);
+                // 步驟 4: 成功訊息
+                showMessage("✅ 模擬提交成功！資料（如果連線成功）將會存證。", false);
                 document.getElementById('form-content').innerHTML = `
                     <div class="text-center p-8 bg-green-50 rounded-lg border border-green-200">
                         <h2 class="text-2xl font-bold text-green-700">感謝您的回覆！</h2>
-                        <p class="text-gray-600 mt-2">您的回覆已安全存證。</p>
+                        <p class="text-gray-600 mt-2">您的回覆已成功模擬並通過格式檢查。</p>
                         <p class="text-sm text-gray-500 mt-4">您現在可以關閉此頁面。</p>
                     </div>
                 `;
 
             } catch (e) {
-                console.error("提交回覆時發生錯誤:", e);
-                showMessage(`提交失敗：無法寫入資料庫。(${e.message})`, true);
+                // 雖然不應該發生錯誤，但如果發生也處理
+                showMessage(`模擬提交流程中發生意外錯誤: ${e.message}`, true);
                 updateSubmitButtonStatus(false, "提交失敗，請重試 (Submission Failed, Retry)", false); // 允許重試
             }
         }
 
         // 頁面載入完成後執行初始化
-        window.onload = initFirebaseAndAuth;
+        window.onload = initApp;
     </script>
 </body>
 </html>
