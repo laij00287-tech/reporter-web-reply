@@ -29,6 +29,12 @@
 
         <!-- 訊息顯示區塊 -->
         <div id="message-box" class="p-3 mb-4 rounded-lg text-sm transition-all duration-300 ease-in-out hidden"></div>
+        
+        <!-- 診斷資訊區塊 (新增 - 幫助檢查環境變數) -->
+        <div id="diagnostic-info" class="p-2 mb-4 bg-yellow-50 text-yellow-800 text-xs rounded-lg border border-yellow-200">
+            <p class="font-bold">連線診斷 (Diagnostics):</p>
+            <p id="config-status" class="break-words">Firebase Config 狀態: 檢查中...</p>
+        </div>
 
         <!-- 表單區塊 -->
         <div id="form-content">
@@ -51,6 +57,7 @@
 
             <!-- 提交按鈕 -->
             <div class="mt-8">
+                <!-- 初始為禁用狀態，等待連線成功 -->
                 <button onclick="submitReply()" id="submit-button" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-lg text-lg font-bold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed" disabled>
                     <span id="button-text">連線中...請稍候 (Connecting... Please wait)</span>
                     <svg id="loading-spinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -80,9 +87,17 @@
         
         // 確保 __app_id 和 __firebase_config 在 Canvas 環境中可用
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        let firebaseConfig;
+        let firebaseConfig = {};
+        const configStatusElement = document.getElementById('config-status');
+
         try {
-            firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+            // 從環境變數獲取原始配置字串
+            const rawConfig = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
+            
+            if (rawConfig && rawConfig.trim()) {
+                // 如果字串存在，則嘗試解析
+                firebaseConfig = JSON.parse(rawConfig);
+            }
         } catch (e) {
             console.error("Firebase config parsing error:", e);
         }
@@ -91,7 +106,7 @@
         function showMessage(text, isError = false) {
             const box = document.getElementById('message-box');
             box.textContent = text;
-            box.classList.remove('hidden', 'bg-red-100', 'border-red-400', 'text-red-700', 'bg-green-100', 'border-green-400', 'text-green-700', 'bg-blue-100', 'border-blue-400', 'text-blue-700');
+            box.classList.remove('hidden', 'bg-red-100', 'border-red-400', 'text-red-700', 'bg-green-100', 'border-green-400', 'text-green-700');
             box.classList.add('border');
             if (isError) {
                 box.classList.add('bg-red-100', 'border-red-400', 'text-red-700');
@@ -130,10 +145,15 @@
             updateSubmitButtonStatus(true, "連線中...請稍候 (Connecting... Please wait)", true);
             
             try {
-                // 1. 初始化 Firebase App
+                // 1. 檢查並更新設定檔狀態 (核心診斷步驟)
                 if (Object.keys(firebaseConfig).length === 0) {
-                    throw new Error("Firebase 設定檔遺失或解析失敗。");
+                    configStatusElement.innerHTML = "Firebase Config 狀態: ❌ **設定檔遺失或為空**。請檢查 App 環境變數是否正確提供 `__firebase_config`。";
+                    throw new Error("Firebase 設定檔遺失或解析失敗。"); 
                 }
+                
+                configStatusElement.textContent = `Firebase Config 狀態: ✅ 成功載入 (${Object.keys(firebaseConfig).length} 個參數)`;
+                
+                // 2. 初始化 Firebase App
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
@@ -141,7 +161,7 @@
                 // 啟用 Firestore Debug 模式 (可選)
                 setLogLevel('debug');
                 
-                // 2. 身份驗證
+                // 3. 身份驗證
                 const authToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
                 if (authToken) {
@@ -150,17 +170,17 @@
                     await signInAnonymously(auth);
                 }
                 
-                // 3. 設定使用者 ID
+                // 4. 設定使用者 ID
                 userId = auth.currentUser?.uid || crypto.randomUUID();
 
-                // 4. 成功，設定旗標並更新 UI
+                // 5. 成功，設定旗標並更新 UI
                 isFirebaseReady = true;
                 console.log("Firebase 初始化與登入成功。User ID:", userId);
                 showMessage("✅ Firebase 連線成功，可以提交回覆。", false);
                 updateSubmitButtonStatus(false, "提交回覆並返回 App (Submit & Return)", false); // 啟用按鈕
 
             } catch (error) {
-                // 5. 失敗，更新 UI 為錯誤狀態
+                // 6. 失敗，更新 UI 為錯誤狀態
                 console.error("Firebase 初始化錯誤:", error);
                 const errorMsg = `連線失敗：Firebase 初始化失敗。(${error.message})`;
                 showMessage(errorMsg, true);
