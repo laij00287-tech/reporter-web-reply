@@ -1,152 +1,223 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Firebase 連線檢查</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        /* 使用 Inter 字體並確保全頁面居中 */
-        body { font-family: 'Inter', sans-serif; background-color: #f7f9fc; }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>新聞採訪回覆</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style> body { font-family: Inter, sans-serif; background:#f7f9fc } </style>
 </head>
-<body class="p-4 md:p-8 flex items-center justify-center min-h-screen">
+<body class="min-h-screen flex items-center justify-center p-4">
+  <div class="w-full max-w-2xl bg-white p-6 rounded-xl shadow-lg">
+    <h1 class="text-2xl font-bold text-center text-indigo-700 mb-4">新聞採訪回覆表單</h1>
 
-    <div id="app-container" class="bg-white p-6 md:p-10 rounded-xl shadow-2xl w-full max-w-lg">
-        <h1 class="text-3xl font-bold text-center text-indigo-700 mb-6">Firebase 連線狀態檢查</h1>
-        
-        <div id="status-message" class="bg-gray-100 p-4 rounded-lg text-center font-medium text-gray-700">
-            嘗試連線到 Firebase...
-        </div>
+    <div id="status" class="mb-4 text-sm text-gray-600">載入中…</div>
 
-        <div class="mt-8 space-y-3">
-            <div class="flex flex-col">
-                <span class="text-sm font-semibold text-gray-500">應用程式 ID (Project ID)</span>
-                <span id="display-app-id" class="p-2 bg-indigo-50 text-indigo-800 rounded-md break-all text-sm font-mono">載入中...</span>
-            </div>
-            
-            <div class="flex flex-col">
-                <span class="text-sm font-semibold text-gray-500">使用者 ID (User UID)</span>
-                <span id="display-user-id" class="p-2 bg-indigo-50 text-indigo-800 rounded-md break-all text-sm font-mono">尚未登入...</span>
-            </div>
-
-            <div class="flex flex-col">
-                <span class="text-sm font-semibold text-gray-500">授權狀態</span>
-                <span id="display-auth-status" class="p-2 bg-indigo-50 text-indigo-800 rounded-md break-all text-sm font-mono">等待驗證...</span>
-            </div>
-        </div>
+    <div class="mb-4">
+      <label class="block text-sm font-medium text-gray-700">問題</label>
+      <div id="question-display" class="mt-1 p-3 bg-indigo-50 rounded text-gray-900">載入問題中…</div>
     </div>
-    
-    <script type="module">
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-// 你的 firebaseConfig（你已提供）
-const firebaseConfig = {
-  apiKey: "AIzaSyBIxsCqay_XEbrI2U9WiUHfnetD5aT7tqI",
-  authDomain: "lkjhhggg.firebaseapp.com",
-  projectId: "lkjhhggg",
-  storageBucket: "lkjhhggg.firebasestorage.app",
-  messagingSenderId: "626715718039",
-  appId: "1:626715718039:web:4bd597eb04f8b21c0854d2",
-  measurementId: "G-P7MMWBE4VP"
-};
+    <div class="mb-3">
+      <label class="block text-sm font-medium text-gray-700">暱稱 (選填)</label>
+      <input id="nickname" type="text" class="mt-1 block w-full rounded border p-2" placeholder="例如：匿名記者A" />
+    </div>
 
-const firebaseApp = initializeApp(firebaseConfig);
-const auth = getAuth(firebaseApp);
-const db = getFirestore(firebaseApp);
+    <div class="mb-3">
+      <label class="block text-sm font-medium text-gray-700">您的回覆</label>
+      <textarea id="response-text" rows="6" class="mt-1 block w-full rounded border p-2" placeholder="請輸入您的回覆..."></textarea>
+    </div>
 
-// Cloud Function submit URL -> 請改成你部署後的 URL
-const CLOUD_SUBMIT_URL = "https://us-central1-lkjhhggg.cloudfunctions.net/submitResponse";
+    <div class="mb-3">
+      <label class="block text-sm font-medium text-gray-700">上傳檔案（選填：圖片 / 音訊 / PDF）</label>
+      <input id="file-input" type="file" class="mt-1" />
+      <div id="file-info" class="mt-2 text-sm text-gray-600"></div>
+    </div>
 
-// 若無登入，使用匿名登入
-async function ensureAnonymousAuth() {
-  const user = auth.currentUser;
-  if (!user) {
-    try {
-      await signInAnonymously(auth);
-      console.log("已匿名登入");
-    } catch (e) {
-      console.error("匿名登入失敗", e);
-      throw e;
-    }
-  }
-}
+    <div class="flex gap-3">
+      <button id="submit-button" class="flex-1 bg-indigo-600 text-white py-2 rounded">提交回覆</button>
+      <button id="preview-btn" class="bg-gray-200 px-4 py-2 rounded">測試連線</button>
+    </div>
 
-// 呼叫 Cloud Function 提交回覆
-async function submitResponseToServer(linkJwtToken, answersObj, responderInfoObj) {
-  // 確保已登入（匿名）
-  await ensureAnonymousAuth();
+    <div class="mt-4 text-sm text-gray-500" id="debug-area"></div>
+  </div>
 
-  // 取得 ID token
-  const idToken = await auth.currentUser.getIdToken(true);
+  <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-  const body = {
-    token: linkJwtToken,      // 從 URL (token) 拿到的 JWT
-    answers: answersObj,      // 例如 { q1: "回答1" }
-    responderInfo: responderInfoObj // 例如 { nickname: "匿名A" }
+  // --- 你的 firebaseConfig（你提供過） ---
+  const firebaseConfig = {
+    apiKey: "AIzaSyBIxsCqay_XEbrI2U9WiUHfnetD5aT7tqI",
+    authDomain: "lkjhhggg.firebaseapp.com",
+    projectId: "lkjhhggg",
+    storageBucket: "lkjhhggg.firebasestorage.app",
+    messagingSenderId: "626715718039",
+    appId: "1:626715718039:web:4bd597eb04f8b21c0854d2",
+    measurementId: "G-P7MMWBE4VP"
   };
 
-  const resp = await fetch(CLOUD_SUBMIT_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${idToken}`
-    },
-    body: JSON.stringify(body)
+  // --- 注意：部署後把這兩個改成實際的 function URL ---
+  // e.g. CLOUD_UPLOAD_URL = "https://us-central1-lkjhhggg.cloudfunctions.net/uploadFile"
+  // CLOUD_SUBMIT_URL = "https://us-central1-lkjhhggg.cloudfunctions.net/submitResponse"
+  const CLOUD_UPLOAD_URL = "https://REPLACE_WITH_YOUR_REGION-PROJECT.cloudfunctions.net/uploadFile";
+  const CLOUD_SUBMIT_URL = "https://REPLACE_WITH_YOUR_REGION-PROJECT.cloudfunctions.net/submitResponse";
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  const statusEl = document.getElementById("status");
+  const questionEl = document.getElementById("question-display");
+  const debugArea = document.getElementById("debug-area");
+  const fileInput = document.getElementById("file-input");
+  const fileInfo = document.getElementById("file-info");
+
+  let selectedFile = null;
+
+  // 讀取 URL token 與 q 參數
+  const urlParams = new URLSearchParams(window.location.search);
+  const jwtTokenFromUrl = urlParams.get("token");
+  const qText = urlParams.get("q"); // 若你同時傳問題(尺寸大可能會使用 token)
+  if (qText) questionEl.textContent = decodeURIComponent(qText);
+
+  // 匿名登入（若已登入則略過）
+  async function ensureAuth() {
+    if (!auth.currentUser) {
+      try {
+        await signInAnonymously(auth);
+        statusEl.textContent = "已使用匿名方式登入 Firebase，準備就緒。";
+      } catch (e) {
+        statusEl.textContent = "登入失敗：" + e.message;
+        throw e;
+      }
+    } else {
+      statusEl.textContent = "使用者已登入。UID: " + auth.currentUser.uid;
+    }
+  }
+
+  onAuthStateChanged(auth, user => {
+    if (user) {
+      statusEl.textContent = `使用者 UID: ${user.uid}`;
+    }
   });
 
-  return resp.json();
-}
-
-// 頁面上的 submit 按鈕事件範例
-async function onSubmitClick() {
-  try {
-    const urlParams = new URLSearchParams(window.location.search);
-    const tokenFromUrl = urlParams.get("token"); // JWT from link
-    if (!tokenFromUrl) {
-      alert("未偵測到 token，無法提交。");
+  fileInput.addEventListener("change", (ev) => {
+    const f = ev.target.files[0];
+    if (!f) {
+      selectedFile = null;
+      fileInfo.textContent = "";
       return;
     }
+    selectedFile = f;
+    fileInfo.textContent = `已選檔：${f.name} (${Math.round(f.size/1024)} KB)`;
+  });
 
-    const responseText = document.getElementById("response-text").value.trim();
-    const nickname = document.getElementById("nickname") ? document.getElementById("nickname").value.trim() : "匿名";
+  // helper: upload file to CLOUD_UPLOAD_URL via FormData (包含 Authorization)
+  async function uploadFileToServer(idToken, tokenJwt, file) {
+    const form = new FormData();
+    // 我們會送 Firebase ID Token (Authorization header) & JWT token (field 'token')
+    form.append("token", tokenJwt);
+    form.append("file", file, file.name);
 
-    if (!responseText) {
-      alert("請輸入回覆內容");
-      return;
+    const resp = await fetch(CLOUD_UPLOAD_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${idToken}`
+      },
+      body: form
+    });
+    if (!resp.ok) {
+      const txt = await resp.text();
+      throw new Error(`upload failed: ${resp.status} ${txt}`);
     }
+    return resp.json(); // { storagePath, fileHash, name, size }
+  }
 
-    // 構造 answers 與 responderInfo 格式，可依需求擴充
-    const answers = { text: responseText };
-    const responderInfo = { nickname };
+  // helper: submit response to CLOUD_SUBMIT_URL
+  async function submitResponseToServer(idToken, tokenJwt, answers, responderInfo, filesMeta) {
+    const body = { token: tokenJwt, answers, responderInfo, files: filesMeta };
+    const resp = await fetch(CLOUD_SUBMIT_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${idToken}`
+      },
+      body: JSON.stringify(body)
+    });
+    return resp.json();
+  }
 
-    const result = await submitResponseToServer(tokenFromUrl, answers, responderInfo);
-    if (result && result.success) {
-      alert("提交成功，感謝您的回覆！");
-      // 可顯示回覆 id： result.id
-    } else {
-      alert("提交失敗: " + JSON.stringify(result));
+  // Submit handler
+  document.getElementById("submit-button").addEventListener("click", async () => {
+    try {
+      // token 必需存在（由記者生成並寫入 interviewLink）
+      if (!jwtTokenFromUrl) {
+        alert("未偵測到連結 token，無法提交。請聯絡記者。");
+        return;
+      }
+
+      await ensureAuth();
+      const idToken = await auth.currentUser.getIdToken(true);
+
+      const responseText = document.getElementById("response-text").value.trim();
+      const nickname = document.getElementById("nickname").value.trim() || "匿名";
+
+      if (!responseText) {
+        alert("請輸入回覆內容");
+        return;
+      }
+
+      statusEl.textContent = "上傳中…";
+
+      const filesMeta = [];
+      if (selectedFile) {
+        // 1) 上傳檔案到 Cloud Function（由後端處理 Storage 上存與 SHA256）
+        const uploadRes = await uploadFileToServer(idToken, jwtTokenFromUrl, selectedFile);
+        filesMeta.push(uploadRes); // { storagePath, fileHash, name, size }
+      }
+
+      // 2) 呼叫 submitResponse
+      const answers = { text: responseText };
+      const responderInfo = { nickname };
+
+      const result = await submitResponseToServer(idToken, jwtTokenFromUrl, answers, responderInfo, filesMeta);
+
+      if (result && result.success) {
+        statusEl.textContent = "提交成功！回覆 ID: " + result.id;
+        alert("提交成功，感謝您的回覆！");
+      } else {
+        statusEl.textContent = "提交失敗：" + JSON.stringify(result);
+        alert("提交失敗：" + JSON.stringify(result));
+      }
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = "錯誤：" + err.message;
+      alert("提交過程發生錯誤：" + err.message);
     }
-  } catch (err) {
-    console.error(err);
-    alert("提交過程發生錯誤: " + err.message);
-  }
-}
+  });
 
-// 綁定按鈕
-document.getElementById("submit-button").addEventListener("click", onSubmitClick);
+  // 測試按鈕
+  document.getElementById("preview-btn").addEventListener("click", async () => {
+    try {
+      await ensureAuth();
+      debugArea.textContent = `Project ID: ${app.options.projectId}\nUID: ${auth.currentUser?.uid}\nToken present: ${jwtTokenFromUrl ? "yes" : "no"}`;
+    } catch (e) {
+      debugArea.textContent = `錯誤：${e.message}`;
+    }
+  });
 
-// 在載入時可註冊 onAuthStateChanged 更新 UI
-onAuthStateChanged(auth, (user) => {
-  if (user) {
-    // 顯示 UID（匿名）
-    const uidSpan = document.getElementById("display-user-id");
-    if (uidSpan) uidSpan.textContent = user.uid;
-  }
-});
-    </script>
+  // 初始化
+  (async () => {
+    try {
+      await ensureAuth();
+      if (qText) questionEl.textContent = decodeURIComponent(qText);
+      else if (!jwtTokenFromUrl) questionEl.textContent = "無問題內容。請使用記者提供的專屬連結。";
+      statusEl.textContent = "準備就緒。";
+    } catch (e) {
+      statusEl.textContent = "初始化錯誤：" + e.message;
+    }
+  })();
+
+  </script>
 </body>
 </html>
